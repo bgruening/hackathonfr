@@ -12,14 +12,53 @@ import skimage.color
 
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
-#import numpy as np
+
 import math
+
+import scipy.stats.kde
+import numpy as np
 
 import csv
 import os.path
 
 import logging
 _log = logging.getLogger(__file__)
+
+
+def kde_image_from_peaks(image):
+    image_gray = skimage.color.rgb2gray(image)
+
+    _log.info("Finding peaks...")
+    peaks = skimage.feature.peak_local_max(image_gray, min_distance=1)
+
+    _log.info("Finding KDE...")
+    bw_method = 0.1
+    kernel = scipy.stats.kde.gaussian_kde(peaks.transpose(), bw_method=bw_method )
+
+    xmin, ymin = 0, 0
+    xmax, ymax = image_gray.shape
+
+    sample_step = 25
+
+    X, Y = np.mgrid[xmin:xmax:sample_step, ymin:ymax:sample_step]
+    #X, Y = np.mgrid[range(xmax), range(ymax)]
+    positions = np.vstack([X.ravel(), Y.ravel()])
+
+    # Z = np.reshape(kernel(positions), X.T.shape)
+
+    _log.info("Evaluating KDE at positions..")
+    # Z = kernel(positions)
+    # Z = kernel.resample()
+    Z = np.reshape(kernel(positions), X.shape)
+
+    # fig = plt.figure()
+    # ax = fig.add_subplot(1,1,1)
+    # image_plot = ax.imshow(Z, cmap=plt.cm.hot, interpolation='nearest')
+
+    
+
+
+    return Z
 
 
 def find_blobs(image):
@@ -50,8 +89,19 @@ def find_blobs(image):
     # we could also use other blob functions here
     # see skimage.feature
     # 
-    blobs = skimage.feature.blob_dog(image_gray, max_sigma=30, threshold=.1)
+    blobs = skimage.feature.blob_dog(image_gray, max_sigma=20, threshold=.1)
+
+    #blobs = skimage.feature.blob_doh(image_gray, max_sigma=10, threshold=.01)
+    #blobs = skimage.feature.blob_log(image_gray, max_sigma=200, min_sigma=1, num_sigma=20, 
+    #                                 threshold=.1, log_scale=False)
+
+    if len(blobs)==0:
+        _log.info("No blobs found.")
+        return []    
+
+    # Compute radii in the 3rd column. (dog+log)
     blobs[:, 2] = blobs[:, 2] * math.sqrt(2)
+
 
     sorted_blobs = blobs[blobs[:,2].argsort()][::-1] # sort, reverse
     
@@ -74,6 +124,18 @@ def plot_blobs(ax, blobs, **plot_kwds):
         _log.debug("Plot blobs (%d,%d) with size %f..", x, y, r)
         c = mpatches.Circle((x, y), r, **plot_kwds)
         ax.add_patch(c)
+
+def save_plot(stem, suffix, image, blobs):
+    figname = stem+'-%s.png' % (suffix,)
+
+    _log.info("Generating plot '%s'...", figname)
+    fig, ax = plt.subplots(1,1)
+
+    ax.imshow(image, interpolation='nearest')
+    plot_blobs(ax, blobs, color='g', linewidth=2, fill=False)
+
+    fig.savefig(figname)
+
 
 if __name__=='__main__':
 
@@ -113,6 +175,8 @@ if __name__=='__main__':
     for fname in args.infiles:
         _log.info("Processing image '%s'...", fname)
         image = skimage.data.imread(fname)
+
+        kde_image = kde_image_from_peaks(image)
         blobs = find_blobs(image)
 
         _log.info("Found %d blobs.", len(blobs))
@@ -139,16 +203,9 @@ if __name__=='__main__':
         # Optionally plotting blobs
         #
         if args.plot:
-            
-            figname = stem+'-blobs.png'
 
-            _log.info("Generating plot '%s'...", figname)
-            fig, ax = plt.subplots(1,1)
-
-            ax.imshow(image, interpolation='nearest')
-            plot_blobs(ax, blobs, color='g', linewidth=2, fill=False)
-
-            fig.savefig(figname)
+            save_plot(stem, "-blobs", image, blobs)
+            save_plot(stem, "-kdeblobs", kde_image, blobs)
 
     _log.info("Done.")
 
