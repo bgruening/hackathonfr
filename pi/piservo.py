@@ -10,8 +10,12 @@ class pyservo:
         config.read(cfg_file)
         self.servo_cmd = "echo %s=" % config.get("servo", "channel") + "%s%% > /dev/servoblaster"
         
-        # 
-        self.dyn_range=
+        # Dyanmic range of our servos
+        range_min, range_max = int(config.get("servo", "range_min")), int(config.get("servo", "range_max"))
+        self.dyn_range = range_max - range_min
+        self.range_min = range_min
+        assert (self.dyn_range >= 0),"Maximum servo range must be over minimum!"
+        
         # ssh stuff
         paramiko.util.log_to_file("ssh.log")
         private_key = paramiko.RSAKey.from_private_key_file(config.get("pi", "key"))
@@ -25,8 +29,9 @@ class pyservo:
     def move(self, percent):
         assert (percent >= 0),"Percentage must be greater than zero!"
         assert (percent <= 100),"Percentage must be lower than hundred!"
-        ssh_stdin, ssh_stdout, ssh_stderr = self.ssh_shell.exec_command(self.servo_cmd%percent)
-        print ssh_stdin, ssh_stdout, ssh_stderr
+        ranged_percent = (self.dyn_range / 100.) * percent + self.range_min
+        print self.servo_cmd%ranged_percent
+        ssh_stdin, ssh_stdout, ssh_stderr = self.ssh_shell.exec_command(self.servo_cmd%ranged_percent)
 
 def main():
     p = optparse.OptionParser(description="PiServo Control")
