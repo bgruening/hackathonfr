@@ -61,6 +61,71 @@ def kde_image_from_peaks(image):
     return Z
 
 
+# def cluster(image):
+
+#     image_gray = rgb2gray(image)
+
+#     _log.info("Finding peaks...")
+#     peaks = skimage.feature.peak_local_max(image_gray, min_distance=1)
+
+#     X = StandardScaler().fit_transform(peaks.astype(np.float))
+
+#     db = DBSCAN(eps=0.1, min_samples=10).fit(X)
+#     core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
+#     core_samples_mask[db.core_sample_indices_] = True
+
+#     labels = db.labels_
+
+#     # Number of clusters in labels, ignoring noise if present.
+#     n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
+
+#     print('Estimated number of clusters: %d' % n_clusters_)
+#     #print("Silhouette Coefficient: %0.3f"
+#     #     % metrics.silhouette_score(X, labels))
+
+#     ##############################################################################
+#     # Plot result
+
+#     fig, ax = plt.subplots(1, 1)
+
+#     _log.info("Plotting...")
+
+#     ymin, xmin = 0, 0
+#     ymax, xmax = image_gray.shape
+#     # extent = [xmin, xmax, ymin, ymax]
+#     #extent = [ymin, ymax, xmin, xmax]
+#     # axs[0].imshow(image_gray, interpolation='nearest')
+#     ax.imshow(image_gray, interpolation='nearest')
+
+#     # Black removed and is used for noise instead.
+#     unique_labels = set(labels)
+#     colors = plt.cm.Spectral(np.linspace(0, 1, len(unique_labels)))
+#     for k, col in zip(unique_labels, colors):
+#         if k == -1:
+#             # Black used for noise.
+#             col = 'k'
+
+#         class_member_mask = (labels == k)
+
+#         xy = peaks[class_member_mask & core_samples_mask]
+#         ax.plot(xy[:, 1], xy[:, 0], 'o', markerfacecolor=col,
+#                 markeredgecolor='k', markersize=10, alpha=0.75)
+
+#         #xy = peaks[class_member_mask & ~core_samples_mask]
+#         #axs[1].plot(xy[:, 1], xy[:, 0], 'o', markerfacecolor=col,
+#         #            markeredgecolor='k', markersize=6)
+
+#     ax.set_title('Estimated number of clusters: %d' % n_clusters_)
+
+#     ax.set_xlim((xmin, xmax))
+#     ax.set_ylim((ymax, ymin))
+    
+
+#     return X
+
+
+
+
 def find_blobs(image):
     """Find blobs.
 
@@ -176,7 +241,7 @@ if __name__=='__main__':
         _log.info("Processing image '%s'...", fname)
         image = skimage.data.imread(fname)
 
-        kde_image = kde_image_from_peaks(image)
+        # kde_image = kde_image_from_peaks(image)
         blobs = find_blobs(image)
 
         _log.info("Found %d blobs.", len(blobs))
@@ -204,8 +269,8 @@ if __name__=='__main__':
         #
         if args.plot:
 
-            save_plot(stem, "-blobs", image, blobs)
-            save_plot(stem, "-kdeblobs", kde_image, blobs)
+            save_plot(stem, "blobs", image, blobs)
+            # save_plot(stem, "kdeblobs", kde_image, blobs)
 
     _log.info("Done.")
 
