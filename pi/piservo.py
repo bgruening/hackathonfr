@@ -12,6 +12,7 @@ class pyservo:
         self.dyn_range = range_max - range_min
         self.range_min = range_min
         self.range_max = range_max
+        self.channel = servo_channel
         assert (self.dyn_range >= 0),"Maximum servo range must be over minimum!"
         
         # ssh stuff
@@ -25,13 +26,32 @@ class pyservo:
                 password='', pkey=private_key)
                 
     def move(self, percent):
-        assert (percent >= 0),"Percentage must be greater than zero!"
+        if (percent < 0): percent = percent * -1
         if ( percent  / 100 ) % 2 == 0:
             ranged_percent = (self.dyn_range / 100.) * (percent % 100)  + self.range_min
         else: 
             ranged_percent = self.range_max - ((self.dyn_range / 100.) * ( 100 - (percent % 100)))
         print self.servo_cmd%ranged_percent
         ssh_stdin, ssh_stdout, ssh_stderr = self.ssh_shell.exec_command(self.servo_cmd%ranged_percent)
+        fp = open("/tmp/pyservo.%s" % self.channel, 'w')
+        fp.write("%i"%percent)
+        fp.close()
+        
+    def move_left(self, percent):
+        self.move_relative(percent)
+        
+    def move_right(self, percent):
+        self.move_relative(-percent)
+                
+    def move_relative(self, percent):
+        try: 
+            fp = open("/tmp/pyservo.%s" % self.channel, 'r')
+            lastpos_line = fp.readline()
+            fp.close()
+        except:
+            lastpos_line = "50"
+        new_pos = int(lastpos_line) + percent if len(lastpos_line) > 0 else 50 + percent
+        self.move(new_pos)         
         
     def takePicture(self, filename):
         self.ssh_shell.exec_command("/root/snap.py %s" %  (os.path.join(self.image_folder, filename), ))
@@ -46,6 +66,7 @@ def main():
         default = os.path.join(os.getcwd(), "x_axis.cfg"))
     p.add_option("-a", "--angle", dest="angle", help="The Servo angle in percent of dynamic range", default = '-1')
     p.add_option("-i", "--image", dest="img", help="Image filename to be taken", default = '')
+    p.add_option("-r", "--relative", dest="rel", help="Relative Movements", default = 'no')
     (opts, args) = p.parse_args()
     
     # Sanity
@@ -64,14 +85,17 @@ def main():
     # Do someting
     p = pyservo(config.get('servo', 'channel'), (int(config.get('servo', 'range_min')), int(config.get('servo', 'range_max'))),
         config.get('pi', 'user'), config.get('pi', 'ip'), config.get('pi', 'key'), config.get('pi', 'image_folder'))
-    if len(opts.img) > 0:
-        p.takePicture(opts.img)
-    else:
-        if angle > 0: p.move(angle)
+    try:
+        rel_angle = int(opts.rel)
+        p.move_relative(rel_angle)
+    except:
+        if len(opts.img) > 0:
+            p.takePicture(opts.img)
         else:
-            for i in range(10):
-                p.move(i*10)
-                time.sleep(.5)
-                #~ p.takePicture("moved_%.2i.jpg"%i)
+            if angle > 0: p.move(angle)
+            else:
+                for i in range(10):
+                    p.move(i*10)
+                    time.sleep(.5)
 
 if (__name__ == "__main__"): main()
