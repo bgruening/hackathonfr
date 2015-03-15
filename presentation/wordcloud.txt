@@ -1,0 +1,22 @@
+
+python-ev3
+scikit-image
+SciPy
+matplotlib
+NumPy
+Python
+Galaxy
+GitHub
+OpenCV
+trello
+Arch Linux Arm
+Debian GNU/Linux
+SSH
+ev3dev
+paramiko
+LibreOffice
+Inkscape
+servoblaster
+
+
+
